@@ -22,6 +22,12 @@
         --ui: rgba(10, 10, 10, 0.14);
         --ui2: rgba(10, 10, 10, 0.28);
         --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+        /* Menu overlay theme */
+        --menu-bg: #070707;
+        --gold-1: #f6e7b4;
+        --gold-2: #c9a441;
+        --gold-3: #fff3c9;
       }
 
       *,
@@ -294,6 +300,15 @@
           opacity 200ms ease;
       }
 
+      .hamburger.open {
+        border-color: rgba(201, 164, 65, 0.55);
+        background: rgba(7, 7, 7, 0.35);
+      }
+
+      .hamburger.open .hamburger-lines span {
+        background: linear-gradient(90deg, var(--gold-1), var(--gold-2), var(--gold-3));
+      }
+
       .hamburger.open .hamburger-lines span:nth-child(1) {
         transform: translateY(5px) rotate(45deg);
       }
@@ -311,13 +326,16 @@
         position: fixed;
         inset: 0;
         z-index: 1100;
-        background: var(--bg);
+        background: var(--menu-bg);
         display: flex;
         align-items: center;
         justify-content: center;
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.45s var(--ease);
+
+        /* make var(--ink) inside menu resolve to gold (used by inline style) */
+        --ink: var(--gold-2);
       }
 
       .menu.open {
@@ -330,24 +348,48 @@
         text-align: center;
       }
 
+      @keyframes goldShimmer {
+        0% {
+          background-position: 0% 50%;
+        }
+        100% {
+          background-position: 180% 50%;
+        }
+      }
+
+      .gold-text {
+        color: transparent;
+        background-image: linear-gradient(90deg, var(--gold-2), var(--gold-3), var(--gold-1), var(--gold-2));
+        background-size: 220% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        text-shadow: 0 0 18px rgba(201, 164, 65, 0.12);
+      }
+
       .menu-name {
         font-family: 'Cormorant Garamond', Georgia, serif;
         font-size: clamp(3rem, 8vw, 6rem);
         font-weight: 300;
         font-style: italic;
-        color: var(--ink);
+        color: transparent;
         opacity: 0;
         transform: translateY(12px);
         transition:
           opacity 0.5s var(--ease) 0.1s,
           transform 0.5s var(--ease) 0.1s;
+
+        background-image: linear-gradient(90deg, var(--gold-2), var(--gold-3), var(--gold-1), var(--gold-2));
+        background-size: 220% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        text-shadow: 0 0 24px rgba(201, 164, 65, 0.16);
       }
 
       .menu-rule {
         width: min(620px, 70vw);
         height: 1px;
         margin: 22px auto 18px;
-        background: rgba(10, 10, 10, 0.14);
+        background: linear-gradient(90deg, rgba(201, 164, 65, 0.08), rgba(255, 243, 201, 0.38), rgba(201, 164, 65, 0.08));
         opacity: 0;
         transition: opacity 0.5s var(--ease) 0.2s;
       }
@@ -381,12 +423,17 @@
         font-weight: 400;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: rgba(10, 10, 10, 0.74);
+        color: transparent;
         text-decoration: none;
+
+        background-image: linear-gradient(90deg, rgba(201, 164, 65, 0.95), rgba(255, 243, 201, 0.95), rgba(201, 164, 65, 0.95));
+        background-size: 220% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
       }
 
       a.menu-link:hover {
-        color: rgba(10, 10, 10, 0.92);
+        text-shadow: 0 0 14px rgba(255, 243, 201, 0.12);
       }
 
       .menu-copy {
@@ -397,7 +444,7 @@
         font-size: 0.72rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: rgba(10, 10, 10, 0.5);
+        color: rgba(255, 243, 201, 0.55);
         opacity: 0;
         transition: opacity 0.5s var(--ease) 0.28s;
         pointer-events: none;
@@ -407,6 +454,13 @@
       .menu.open .menu-name {
         opacity: 1;
         transform: translateY(0);
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        .menu.open .menu-name,
+        .menu.open .menu-link {
+          animation: goldShimmer 2.4s linear infinite;
+        }
       }
 
       .menu.open .menu-rule {
