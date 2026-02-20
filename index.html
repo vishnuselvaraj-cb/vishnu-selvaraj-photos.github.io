@@ -537,16 +537,10 @@
 
     <script>
       // ================================================================
-      //  YOUR PHOTOS (image-only site: no captions)
-      //  Add entries like: { src: 'photos/my-shot.jpg' }
+      //  PHOTOS SOURCE
+      //  Edit `photos.json` to add/remove/reorder photos.
       // ================================================================
-      const photos = [
-        { src: 'photos/grandcanyon.jpg' },
-        { src: 'photos/wingshot.jpg' },
-        { src: 'photos/bluehourocean.jpg' },
-        { src: 'photos/deathvalley.jpg' },
-        { src: 'photos/mistypark.jpg' },
-      ];
+      let photos = [];
 
       const stageEl = document.getElementById('stage');
       const uiEl = document.getElementById('ui');
@@ -562,6 +556,11 @@
       let wheelCooldownId = 0;
       let idleTimerId = 0;
       let cursorMode = null; // 'prev' | 'next' | null
+
+      const AUTO_ADVANCE_MS = 4000;
+      let autoAdvanceId = 0;
+      let slides = [];
+      let dots = [];
 
       let isMenuOpen = false;
 
@@ -623,61 +622,97 @@
         idleTimerId = window.setTimeout(() => hideChrome(), 1600);
       }
 
+      function stopAutoAdvance() {
+        window.clearInterval(autoAdvanceId);
+        autoAdvanceId = 0;
+      }
+
+      function startAutoAdvance() {
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        stopAutoAdvance();
+        autoAdvanceId = window.setInterval(() => {
+          if (document.hidden) return;
+          if (isMenuOpen) return;
+          if (isLocked) return;
+          goTo(index + 1, true);
+        }, AUTO_ADVANCE_MS);
+      }
+
+      function bumpAutoAdvance() {
+        if (!autoAdvanceId) return;
+        startAutoAdvance();
+      }
+
       function openMenu() {
         menu.classList.add('open');
         hamburger.classList.add('open');
         isMenuOpen = true;
+        stopAutoAdvance();
       }
 
       function closeMenu() {
         menu.classList.remove('open');
         hamburger.classList.remove('open');
         isMenuOpen = false;
+        startAutoAdvance();
       }
 
       hamburger.addEventListener('click', () => {
         menu.classList.contains('open') ? closeMenu() : openMenu();
       });
 
-      const slides = photos.map((p, i) => {
-        const slide = document.createElement('div');
-        slide.className = 'slide' + (i === 0 ? ' is-active' : '');
+      function clearGallery() {
+        slides.forEach((s) => s.remove());
+        slides = [];
 
-        const img = document.createElement('img');
-        img.src = p.src;
-        img.alt = '';
-        img.decoding = 'async';
-        img.loading = i === 0 ? 'eager' : 'lazy';
-        img.draggable = false;
+        dotsEl.textContent = '';
+        dots = [];
+      }
 
-        function applyOrientation() {
-          const w = img.naturalWidth || 0;
-          const h = img.naturalHeight || 0;
-          if (!w || !h) return;
-          img.classList.remove('is-portrait', 'is-landscape');
-          if (h > w) img.classList.add('is-portrait');
-          else img.classList.add('is-landscape');
-        }
+      function buildGallery() {
+        clearGallery();
 
-        img.addEventListener('load', applyOrientation);
-        if (img.complete) applyOrientation();
+        slides = photos.map((p, i) => {
+          const slide = document.createElement('div');
+          slide.className = 'slide' + (i === 0 ? ' is-active' : '');
 
-        slide.appendChild(img);
-        stageEl.appendChild(slide);
-        return slide;
-      });
+          const img = document.createElement('img');
+          img.src = p.src;
+          img.alt = '';
+          img.decoding = 'async';
+          img.loading = i === 0 ? 'eager' : 'lazy';
+          img.draggable = false;
 
-      const dots = photos.map((_, i) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'dot' + (i === 0 ? ' is-active' : '');
-        b.setAttribute('aria-label', `Go to ${i + 1}`);
-        b.addEventListener('click', () => goTo(i));
-        dotsEl.appendChild(b);
-        return b;
-      });
+          function applyOrientation() {
+            const w = img.naturalWidth || 0;
+            const h = img.naturalHeight || 0;
+            if (!w || !h) return;
+            img.classList.remove('is-portrait', 'is-landscape');
+            if (h > w) img.classList.add('is-portrait');
+            else img.classList.add('is-landscape');
+          }
+
+          img.addEventListener('load', applyOrientation);
+          if (img.complete) applyOrientation();
+
+          slide.appendChild(img);
+          stageEl.appendChild(slide);
+          return slide;
+        });
+
+        dots = photos.map((_, i) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'dot' + (i === 0 ? ' is-active' : '');
+          b.setAttribute('aria-label', `Go to ${i + 1}`);
+          b.addEventListener('click', () => goTo(i, false));
+          dotsEl.appendChild(b);
+          return b;
+        });
+      }
 
       function warmCache(i) {
+        if (!photos.length) return;
         const next = photos[(i + 1) % photos.length]?.src;
         const prev = photos[(i - 1 + photos.length) % photos.length]?.src;
         [next, prev]
@@ -695,6 +730,7 @@
       }
 
       function activate(i) {
+        if (!photos.length) return;
         slides[index]?.classList.remove('is-active');
         dots[index]?.classList.remove('is-active');
 
@@ -706,7 +742,8 @@
         warmCache(index);
       }
 
-      function goTo(i) {
+      function goTo(i, isAuto) {
+        if (!photos.length) return;
         if (isLocked || i === index) return;
         isLocked = true;
         activate((i + photos.length) % photos.length);
@@ -714,14 +751,16 @@
         wheelCooldownId = window.setTimeout(() => {
           isLocked = false;
         }, 520);
+
+        if (!isAuto) bumpAutoAdvance();
       }
 
       function next() {
-        goTo(index + 1);
+        goTo(index + 1, false);
       }
 
       function prev() {
-        goTo(index - 1);
+        goTo(index - 1, false);
       }
 
       zonePrevEl.addEventListener('click', prev);
@@ -735,6 +774,7 @@
         if (e.key === 'ArrowRight' || e.key === 'PageDown') next();
         if (e.key === 'ArrowLeft' || e.key === 'PageUp') prev();
         showChrome();
+        bumpAutoAdvance();
       });
 
       window.addEventListener(
@@ -746,6 +786,7 @@
           e.preventDefault();
           e.deltaY > 0 ? next() : prev();
           showChrome();
+          bumpAutoAdvance();
         },
         { passive: false }
       );
@@ -759,6 +800,7 @@
           tx0 = e.touches[0].clientX;
           ty0 = e.touches[0].clientY;
           showChrome();
+          bumpAutoAdvance();
         },
         { passive: true }
       );
@@ -770,6 +812,7 @@
           const dy = Math.abs(ty0 - e.changedTouches[0].clientY);
           if (Math.abs(dx) > 44 && dy < 90) dx > 0 ? next() : prev();
           showChrome();
+          bumpAutoAdvance();
         },
         { passive: true }
       );
@@ -777,18 +820,49 @@
       document.addEventListener('mousemove', showChrome, { passive: true });
       document.addEventListener('focusin', showChrome);
 
-      (function initFromHash() {
-        const n = Number(String(location.hash || '').replace('#', ''));
-        if (Number.isFinite(n) && n >= 1 && n <= photos.length) {
-          activate(n - 1);
-        } else {
-          setHash(index);
-          warmCache(index);
-        }
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopAutoAdvance();
+        else startAutoAdvance();
+      });
 
-        // Start with visible UI, then gently fade to idle.
-        setChromeTabbable(true);
-        scheduleIdle();
+      async function loadPhotos() {
+        const res = await fetch('photos.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to load photos.json');
+        const data = await res.json();
+        if (!Array.isArray(data)) throw new Error('photos.json must be an array');
+
+        photos = data
+          .map((p) => {
+            if (typeof p === 'string') return { src: p };
+            if (p && typeof p.src === 'string') return { src: p.src };
+            return null;
+          })
+          .filter(Boolean);
+
+        if (!photos.length) throw new Error('No photos found in photos.json');
+      }
+
+      (async function init() {
+        try {
+          await loadPhotos();
+          buildGallery();
+
+          const n = Number(String(location.hash || '').replace('#', ''));
+          if (Number.isFinite(n) && n >= 1 && n <= photos.length) {
+            activate(n - 1);
+          } else {
+            setHash(index);
+            warmCache(index);
+          }
+
+          // Start with visible UI, then gently fade to idle.
+          setChromeTabbable(true);
+          scheduleIdle();
+          startAutoAdvance();
+        } catch (err) {
+          // Fail silently but keep page functional
+          console.error(err);
+        }
       })();
     </script>
   </body>
