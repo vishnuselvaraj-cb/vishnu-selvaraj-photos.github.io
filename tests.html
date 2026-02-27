@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Photo Gallery Tests</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; margin-bottom: 30px; }
+    .test-suite { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .test-suite h2 { margin-top: 0; color: #555; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .test { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .test:last-child { border-bottom: none; }
+    .test-name { flex: 1; }
+    .test-status { font-weight: 600; padding: 4px 12px; border-radius: 4px; font-size: 0.85rem; }
+    .test-status.pass { background: #d4edda; color: #155724; }
+    .test-status.fail { background: #f8d7da; color: #721c24; }
+    .test-status.pending { background: #fff3cd; color: #856404; }
+    .summary { margin-top: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .summary h2 { margin-top: 0; }
+    .stats { display: flex; gap: 20px; }
+    .stat { text-align: center; }
+    .stat-value { font-size: 2rem; font-weight: bold; }
+    .stat-label { color: #666; font-size: 0.9rem; }
+    .stat-value.pass { color: #28a745; }
+    .stat-value.fail { color: #dc3545; }
+    #runTests { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-bottom: 20px; }
+    #runTests:hover { background: #0056b3; }
+    #runTests:disabled { background: #6c757d; cursor: not-allowed; }
+    .error-msg { color: #dc3545; font-size: 0.85rem; margin-left: 10px; }
+    iframe { display: none; }
+  </style>
+</head>
+<body>
+  <h1>📸 Photo Gallery Test Suite</h1>
+  <button id="runTests">Run All Tests</button>
+  
+  <div id="results"></div>
+  
+  <div class="summary" id="summary" style="display:none;">
+    <h2>Summary</h2>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value pass" id="passCount">0</div>
+        <div class="stat-label">Passed</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value fail" id="failCount">0</div>
+        <div class="stat-label">Failed</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="totalCount">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+    </div>
+  </div>
+
+  <iframe id="testFrame" src="index.html"></iframe>
+
+  <script>
+    const testSuites = {
+      'photos.json Structure': [
+        {
+          name: 'photos.json loads successfully',
+          test: async () => {
+            const res = await fetch('photos.json');
+            if (!res.ok) throw new Error('Failed to fetch photos.json');
+            return true;
+          }
+        },
+        {
+          name: 'photos.json is valid JSON array',
+          test: async () => {
+            const res = await fetch('photos.json');
+            const data = await res.json();
+            if (!Array.isArray(data)) throw new Error('Expected array');
+            return true;
+          }
+        },
+        {
+          name: 'All photos have src field',
+          test: async () => {
+            const res = await fetch('photos.json');
+            const data = await res.json();
+            const invalid = data.filter(p => !p.src);
+            if (invalid.length > 0) throw new Error(`${invalid.length} photos missing src`);
+            return true;
+          }
+        },
+        {
+          name: 'All photos have category field',
+          test: async () => {
+            const res = await fetch('photos.json');
+            const data = await res.json();
+            const invalid = data.filter(p => !p.category);
+            if (invalid.length > 0) throw new Error(`${invalid.length} photos missing category`);
+            return true;
+          }
+        },
+        {
+          name: 'Categories are valid (landscape, wildlife, travel, urban)',
+          test: async () => {
+            const validCategories = ['landscape', 'wildlife', 'travel', 'urban'];
+            const res = await fetch('photos.json');
+            const data = await res.json();
+            const invalid = data.filter(p => p.category && !validCategories.includes(p.category));
+            if (invalid.length > 0) throw new Error(`Invalid categories found: ${invalid.map(p => p.category).join(', ')}`);
+            return true;
+          }
+        },
+        {
+          name: 'Photo files exist',
+          test: async () => {
+            const res = await fetch('photos.json');
+            const data = await res.json();
+            // Check first 3 photos only for speed
+            const checks = data.slice(0, 3).map(async p => {
+              const imgRes = await fetch(p.src, { method: 'HEAD' });
+              if (!imgRes.ok) throw new Error(`Missing: ${p.src}`);
+            });
+            await Promise.all(checks);
+            return true;
+          }
+        }
+      ],
+      'DOM Structure': [
+        {
+          name: 'Stage element exists',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            if (!doc.getElementById('stage')) throw new Error('Missing #stage');
+            return true;
+          }
+        },
+        {
+          name: 'Grid element exists',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            if (!doc.getElementById('grid')) throw new Error('Missing #grid');
+            return true;
+          }
+        },
+        {
+          name: 'Filter buttons exist',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            const filters = doc.querySelectorAll('.filter-btn');
+            if (filters.length !== 5) throw new Error(`Expected 5 filters, found ${filters.length}`);
+            return true;
+          }
+        },
+        {
+          name: 'Navigation zones exist',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            if (!doc.getElementById('zonePrev')) throw new Error('Missing #zonePrev');
+            if (!doc.getElementById('zoneNext')) throw new Error('Missing #zoneNext');
+            return true;
+          }
+        },
+        {
+          name: 'Menu element exists',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            if (!doc.getElementById('menu')) throw new Error('Missing #menu');
+            return true;
+          }
+        },
+        {
+          name: 'Hamburger button exists',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            if (!doc.getElementById('hamburger')) throw new Error('Missing #hamburger');
+            return true;
+          }
+        },
+        {
+          name: 'Theme toggle exists',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            if (!doc.getElementById('themeToggle')) throw new Error('Missing #themeToggle');
+            return true;
+          }
+        },
+        {
+          name: 'Share bar exists',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            if (!doc.getElementById('shareBar')) throw new Error('Missing #shareBar');
+            return true;
+          }
+        },
+        {
+          name: 'Copy link button exists (no Twitter/Pinterest)',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            if (!doc.getElementById('shareCopy')) throw new Error('Missing #shareCopy');
+            if (doc.getElementById('shareTwitter')) throw new Error('Twitter share should be removed');
+            if (doc.getElementById('sharePinterest')) throw new Error('Pinterest share should be removed');
+            return true;
+          }
+        }
+      ],
+      'Gallery Functionality': [
+        {
+          name: 'Slides are created from photos',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            await new Promise(r => setTimeout(r, 500)); // Wait for gallery to build
+            const slides = doc.querySelectorAll('.slide');
+            if (slides.length === 0) throw new Error('No slides created');
+            return true;
+          }
+        },
+        {
+          name: 'One slide is active',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            await new Promise(r => setTimeout(r, 500));
+            const activeSlides = doc.querySelectorAll('.slide.is-active');
+            if (activeSlides.length !== 1) throw new Error(`Expected 1 active slide, found ${activeSlides.length}`);
+            return true;
+          }
+        },
+        {
+          name: 'Thumbnails are created',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            await new Promise(r => setTimeout(r, 500));
+            const thumbs = doc.querySelectorAll('.thumb');
+            if (thumbs.length === 0) throw new Error('No thumbnails created');
+            return true;
+          }
+        },
+        {
+          name: 'Thumbnails have category data attribute',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            await new Promise(r => setTimeout(r, 500));
+            const thumbs = doc.querySelectorAll('.thumb');
+            const withCategory = Array.from(thumbs).filter(t => t.dataset.category);
+            if (withCategory.length !== thumbs.length) throw new Error(`${thumbs.length - withCategory.length} thumbs missing category`);
+            return true;
+          }
+        },
+        {
+          name: 'Dots navigation is created',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            await new Promise(r => setTimeout(r, 500));
+            const dots = doc.querySelectorAll('.dot');
+            if (dots.length === 0) throw new Error('No navigation dots created');
+            return true;
+          }
+        },
+        {
+          name: 'One dot is active',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            await new Promise(r => setTimeout(r, 500));
+            const activeDots = doc.querySelectorAll('.dot.is-active');
+            if (activeDots.length !== 1) throw new Error(`Expected 1 active dot, found ${activeDots.length}`);
+            return true;
+          }
+        }
+      ],
+      'Filter Functionality': [
+        {
+          name: 'All filter is active by default',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            const allBtn = doc.querySelector('.filter-btn[data-category="all"]');
+            if (!allBtn.classList.contains('is-active')) throw new Error('All filter not active by default');
+            return true;
+          }
+        },
+        {
+          name: 'Clicking filter updates active state',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            const landscapeBtn = doc.querySelector('.filter-btn[data-category="landscape"]');
+            landscapeBtn.click();
+            await new Promise(r => setTimeout(r, 100));
+            if (!landscapeBtn.classList.contains('is-active')) throw new Error('Landscape filter not activated');
+            // Reset
+            doc.querySelector('.filter-btn[data-category="all"]').click();
+            return true;
+          }
+        },
+        {
+          name: 'Filter hides non-matching thumbnails',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            await new Promise(r => setTimeout(r, 500));
+            
+            const wildlifeBtn = doc.querySelector('.filter-btn[data-category="wildlife"]');
+            wildlifeBtn.click();
+            await new Promise(r => setTimeout(r, 100));
+            
+            const hiddenThumbs = doc.querySelectorAll('.thumb.is-hidden');
+            const visibleThumbs = doc.querySelectorAll('.thumb:not(.is-hidden)');
+            
+            // Check that visible thumbs are wildlife
+            const wrongCategory = Array.from(visibleThumbs).filter(t => t.dataset.category !== 'wildlife');
+            
+            // Reset
+            doc.querySelector('.filter-btn[data-category="all"]').click();
+            
+            if (wrongCategory.length > 0) throw new Error('Non-wildlife photos still visible');
+            if (hiddenThumbs.length === 0) throw new Error('No photos were hidden');
+            return true;
+          }
+        }
+      ],
+      'Navigation': [
+        {
+          name: 'Clicking next zone advances slide',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            await new Promise(r => setTimeout(r, 600));
+            
+            const initialActive = doc.querySelector('.slide.is-active');
+            const initialIndex = Array.from(doc.querySelectorAll('.slide')).indexOf(initialActive);
+            
+            const zoneNext = doc.getElementById('zoneNext');
+            zoneNext.click();
+            await new Promise(r => setTimeout(r, 600));
+            
+            const newActive = doc.querySelector('.slide.is-active');
+            const newIndex = Array.from(doc.querySelectorAll('.slide')).indexOf(newActive);
+            
+            if (newIndex === initialIndex) throw new Error('Slide did not advance');
+            return true;
+          }
+        },
+        {
+          name: 'Clicking prev zone goes back',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            await new Promise(r => setTimeout(r, 600));
+            
+            const initialActive = doc.querySelector('.slide.is-active');
+            const initialIndex = Array.from(doc.querySelectorAll('.slide')).indexOf(initialActive);
+            
+            const zonePrev = doc.getElementById('zonePrev');
+            zonePrev.click();
+            await new Promise(r => setTimeout(r, 600));
+            
+            const newActive = doc.querySelector('.slide.is-active');
+            const newIndex = Array.from(doc.querySelectorAll('.slide')).indexOf(newActive);
+            
+            if (newIndex === initialIndex) throw new Error('Slide did not go back');
+            return true;
+          }
+        },
+        {
+          name: 'Clicking thumbnail updates slideshow',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            await new Promise(r => setTimeout(r, 600));
+            
+            const thumbs = doc.querySelectorAll('.thumb');
+            if (thumbs.length < 3) throw new Error('Not enough thumbnails');
+            
+            const initialActive = doc.querySelector('.slide.is-active');
+            const initialIndex = Array.from(doc.querySelectorAll('.slide')).indexOf(initialActive);
+            
+            // Click a different thumbnail
+            const targetIndex = (initialIndex + 2) % thumbs.length;
+            thumbs[targetIndex].click();
+            await new Promise(r => setTimeout(r, 600));
+            
+            const newActive = doc.querySelector('.slide.is-active');
+            const newIndex = Array.from(doc.querySelectorAll('.slide')).indexOf(newActive);
+            
+            if (newIndex !== targetIndex) throw new Error(`Expected slide ${targetIndex}, got ${newIndex}`);
+            return true;
+          }
+        }
+      ],
+      'Menu': [
+        {
+          name: 'Menu opens on hamburger click',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            
+            const hamburger = doc.getElementById('hamburger');
+            const menu = doc.getElementById('menu');
+            
+            hamburger.click();
+            await new Promise(r => setTimeout(r, 100));
+            
+            if (!menu.classList.contains('open')) throw new Error('Menu did not open');
+            
+            // Close menu
+            hamburger.click();
+            return true;
+          }
+        },
+        {
+          name: 'Menu closes on second hamburger click',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            
+            const hamburger = doc.getElementById('hamburger');
+            const menu = doc.getElementById('menu');
+            
+            hamburger.click();
+            await new Promise(r => setTimeout(r, 100));
+            hamburger.click();
+            await new Promise(r => setTimeout(r, 100));
+            
+            if (menu.classList.contains('open')) throw new Error('Menu did not close');
+            return true;
+          }
+        },
+        {
+          name: 'Instagram link is present in menu',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            
+            const instaLink = doc.querySelector('.menu a[href*="instagram.com/vardhvish18"]');
+            if (!instaLink) throw new Error('Instagram link not found');
+            return true;
+          }
+        },
+        {
+          name: 'Copyright notice is present',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            
+            const copyright = doc.querySelector('.menu-copy');
+            if (!copyright) throw new Error('Copyright not found');
+            if (!copyright.textContent.includes('2026')) throw new Error('Year not in copyright');
+            if (!copyright.textContent.includes('Vishnu Selvaraj')) throw new Error('Name not in copyright');
+            if (!copyright.textContent.includes('All Rights Reserved')) throw new Error('Missing "All Rights Reserved"');
+            return true;
+          }
+        }
+      ],
+      'Theme Toggle': [
+        {
+          name: 'Theme toggle switches to dark mode',
+          test: async () => {
+            const frame = document.getElementById('testFrame');
+            const doc = frame.contentDocument;
+            
+            const toggle = doc.getElementById('themeToggle');
+            const html = doc.documentElement;
+            
+            const wasDark = html.classList.contains('dark');
+            toggle.click();
+            await new Promise(r => setTimeout(r, 100));
+            
+            const isDark = html.classList.contains('dark');
+            
+            // Reset if needed
+            if (isDark !== wasDark) toggle.click();
+            
+            if (isDark === wasDark) throw new Error('Theme did not toggle');
+            return true;
+          }
+        }
+      ]
+    };
+
+    async function runTests() {
+      const btn = document.getElementById('runTests');
+      btn.disabled = true;
+      btn.textContent = 'Running...';
+      
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+      
+      let passed = 0;
+      let failed = 0;
+      
+      // Wait for iframe to load
+      await new Promise(r => setTimeout(r, 1000));
+      
+      for (const [suiteName, tests] of Object.entries(testSuites)) {
+        const suiteDiv = document.createElement('div');
+        suiteDiv.className = 'test-suite';
+        suiteDiv.innerHTML = `<h2>${suiteName}</h2>`;
+        
+        for (const testCase of tests) {
+          const testDiv = document.createElement('div');
+          testDiv.className = 'test';
+          
+          try {
+            await testCase.test();
+            testDiv.innerHTML = `
+              <span class="test-name">${testCase.name}</span>
+              <span class="test-status pass">PASS</span>
+            `;
+            passed++;
+          } catch (err) {
+            testDiv.innerHTML = `
+              <span class="test-name">${testCase.name}</span>
+              <span class="test-status fail">FAIL</span>
+              <span class="error-msg">${err.message}</span>
+            `;
+            failed++;
+          }
+          
+          suiteDiv.appendChild(testDiv);
+        }
+        
+        resultsDiv.appendChild(suiteDiv);
+      }
+      
+      // Show summary
+      const summary = document.getElementById('summary');
+      summary.style.display = 'block';
+      document.getElementById('passCount').textContent = passed;
+      document.getElementById('failCount').textContent = failed;
+      document.getElementById('totalCount').textContent = passed + failed;
+      
+      btn.disabled = false;
+      btn.textContent = 'Run All Tests';
+    }
+
+    document.getElementById('runTests').addEventListener('click', runTests);
+    
+    // Auto-run on load
+    document.getElementById('testFrame').addEventListener('load', () => {
+      setTimeout(runTests, 500);
+    });
+  </script>
+</body>
+</html>

@@ -731,6 +731,176 @@
           transform: none;
         }
       }
+
+      /* Category Filter Styles */
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        max-width: 1200px;
+        margin: 0 auto 18px;
+        padding: 0 18px;
+      }
+
+      .filter-btn {
+        appearance: none;
+        border: 1px solid var(--ui);
+        background: transparent;
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--fg);
+        cursor: pointer;
+        transition: all 200ms ease;
+        opacity: 0.75;
+      }
+
+      .filter-btn:hover {
+        border-color: var(--ui2);
+        opacity: 1;
+      }
+
+      .filter-btn.is-active {
+        background: var(--fg);
+        color: var(--bg);
+        border-color: var(--fg);
+        opacity: 1;
+      }
+
+      .filter-btn:focus-visible {
+        outline: 2px solid rgba(10, 10, 10, 0.25);
+        outline-offset: 4px;
+      }
+
+      /* Thumbnail hidden state for filtering */
+      .thumb.is-hidden {
+        display: none;
+      }
+
+      /* Social Share Buttons */
+      .share-bar {
+        position: fixed;
+        bottom: 18px;
+        right: 18px;
+        z-index: 1200;
+        display: flex;
+        gap: 8px;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: all 300ms ease;
+        pointer-events: none;
+      }
+
+      .share-bar.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+
+      .share-btn {
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--ui);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        transition: all 200ms ease;
+      }
+
+      .share-btn:hover {
+        border-color: var(--ui2);
+        transform: scale(1.08);
+      }
+
+      .share-btn svg {
+        width: 18px;
+        height: 18px;
+        fill: var(--fg);
+      }
+
+      html.dark .share-bar .share-btn {
+        background: rgba(30, 30, 30, 0.85);
+      }
+
+      /* Photo title overlay */
+      .photo-title {
+        position: absolute;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 1.1rem;
+        font-weight: 300;
+        font-style: italic;
+        color: var(--fg);
+        opacity: 0;
+        transition: opacity 400ms ease;
+        text-shadow: 0 1px 8px rgba(0,0,0,0.3);
+        white-space: nowrap;
+        z-index: 10;
+        pointer-events: none;
+      }
+
+      .photo-title.is-visible {
+        opacity: 0.85;
+      }
+
+      /* Instagram link in menu */
+      .menu-social {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        margin-top: 20px;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 0.5s var(--ease) 0.3s, transform 0.5s var(--ease) 0.3s;
+      }
+
+      .menu.open .menu-social {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .social-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.72rem;
+        font-weight: 400;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        text-decoration: none;
+        color: transparent;
+        background-image: linear-gradient(90deg, rgba(201, 164, 65, 0.95), rgba(255, 243, 201, 0.95), rgba(201, 164, 65, 0.95));
+        background-size: 220% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        transition: text-shadow 200ms ease;
+      }
+
+      .social-link:hover {
+        text-shadow: 0 0 14px rgba(255, 243, 201, 0.2);
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        .menu.open .social-link {
+          animation: goldShimmer 2.4s linear infinite;
+        }
+      }
+
+      .social-link svg {
+        width: 16px;
+        height: 16px;
+        fill: url(#goldGradient);
+      }
     </style>
   </head>
 
@@ -771,11 +941,35 @@
       </div>
     </main>
 
+    <!-- Share Button -->
+    <div class="share-bar" id="shareBar">
+      <button class="share-btn" id="shareCopy" type="button" aria-label="Copy link" title="Copy link">
+        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+      </button>
+    </div>
+
     <section class="gallery" aria-label="Gallery">
+      <div class="filters" id="filters">
+        <button class="filter-btn is-active" data-category="all" type="button">All</button>
+        <button class="filter-btn" data-category="landscape" type="button">Landscape</button>
+        <button class="filter-btn" data-category="wildlife" type="button">Wildlife</button>
+        <button class="filter-btn" data-category="travel" type="button">Travel</button>
+        <button class="filter-btn" data-category="urban" type="button">Urban</button>
+      </div>
       <div class="grid" id="grid"></div>
     </section>
 
     <div class="menu" id="menu" role="dialog" aria-modal="true" aria-label="Navigation">
+      <!-- SVG gradient definition for Instagram icon -->
+      <svg width="0" height="0" style="position:absolute">
+        <defs>
+          <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#c9a441"/>
+            <stop offset="50%" style="stop-color:#fff3c9"/>
+            <stop offset="100%" style="stop-color:#c9a441"/>
+          </linearGradient>
+        </defs>
+      </svg>
       <div class="menu-inner">
         <div class="menu-name">Vishnu Selvaraj</div>
         <div class="menu-rule"></div>
@@ -783,8 +977,8 @@
           <span class="menu-link" style="color: var(--ink); letter-spacing: 0.35em; font-size: 0.58rem">Photography</span>
         </div>
       </div>
-      <a href="mailto:vishnu.selvaraj@gmail.com" class="menu-link menu-email-bottom">vishnu.selvaraj@gmail.com</a>
-      <div class="menu-copy">&#169; 2026 Vishnu Selvaraj</div>
+      <a href="https://www.instagram.com/vardhvish18/" target="_blank" rel="noopener noreferrer" class="menu-link menu-email-bottom">@vardhvish18</a>
+      <div class="menu-copy">&#169; 2026 Vishnu Selvaraj. All Rights Reserved.</div>
     </div>
 
     <script>
@@ -803,12 +997,17 @@
       const hamburger = document.getElementById('hamburger');
       const menu = document.getElementById('menu');
       const cursorEl = document.getElementById('cursor');
+      const shareBar = document.getElementById('shareBar');
+      const filtersEl = document.getElementById('filters');
 
       let index = 0;
       let isLocked = false;
       let wheelCooldownId = 0;
       let idleTimerId = 0;
       let cursorMode = null; // 'prev' | 'next' | null
+      let currentFilter = 'all';
+      let allPhotos = []; // Keep original full list
+      let thumbButtons = []; // Store thumbnail button references
 
       const AUTO_ADVANCE_MS = 4000;
       let autoAdvanceId = 0;
@@ -965,18 +1164,21 @@
 
         // Thumbnails grid
         gridEl.textContent = '';
+        thumbButtons = [];
         photos.forEach((p, i) => {
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'thumb';
-          btn.setAttribute('aria-label', `View photo ${i + 1}`);
+          btn.setAttribute('aria-label', `View photo ${i + 1}${p.title ? ': ' + p.title : ''}`);
+          btn.dataset.category = p.category || 'all';
+          btn.dataset.index = i;
 
           const inner = document.createElement('div');
           inner.className = 'thumb-inner';
 
           const img = document.createElement('img');
           img.src = p.src;
-          img.alt = '';
+          img.alt = p.title || '';
           img.loading = 'lazy';
           img.decoding = 'async';
           img.draggable = false;
@@ -991,7 +1193,11 @@
           });
 
           gridEl.appendChild(btn);
+          thumbButtons.push(btn);
         });
+
+        // Apply current filter
+        applyFilter(currentFilter);
       }
 
       function warmCache(i) {
@@ -1020,6 +1226,9 @@
         index = i;
         slides[index]?.classList.add('is-active');
         dots[index]?.classList.add('is-active');
+
+        // Show share bar
+        shareBar.classList.add('is-visible');
 
         setHash(index);
         warmCache(index);
@@ -1105,6 +1314,44 @@
         return arr;
       }
 
+      // Category filter functionality
+      function applyFilter(category) {
+        currentFilter = category;
+        
+        // Update filter button states
+        filtersEl.querySelectorAll('.filter-btn').forEach(btn => {
+          btn.classList.toggle('is-active', btn.dataset.category === category);
+        });
+
+        // Filter thumbnails
+        thumbButtons.forEach(btn => {
+          const thumbCategory = btn.dataset.category;
+          const shouldShow = category === 'all' || thumbCategory === category;
+          btn.classList.toggle('is-hidden', !shouldShow);
+        });
+      }
+
+      // Filter button click handlers
+      filtersEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('.filter-btn');
+        if (!btn) return;
+        applyFilter(btn.dataset.category);
+      });
+
+      // Social share functionality
+      // Copy link functionality
+      document.getElementById('shareCopy').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          const btn = document.getElementById('shareCopy');
+          const originalSvg = btn.innerHTML;
+          btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+          setTimeout(() => { btn.innerHTML = originalSvg; }, 1500);
+        } catch (err) {
+          console.error('Failed to copy:', err);
+        }
+      });
+
       async function loadPhotos() {
         const res = await fetch('photos.json', { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to load photos.json');
@@ -1114,7 +1361,7 @@
         photos = data
           .map((p) => {
             if (typeof p === 'string') return { src: p };
-            if (p && typeof p.src === 'string') return { src: p.src };
+            if (p && typeof p.src === 'string') return { src: p.src, category: p.category || 'all', title: p.title || '' };
             return null;
           })
           .filter(Boolean);
